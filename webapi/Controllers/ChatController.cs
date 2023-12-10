@@ -367,7 +367,8 @@ public class ChatController : ControllerBase, IDisposable
                                         {
                                             authHeader = authHeader.ToString().Substring(7);
                                         }
-
+                                        //Here we're just passing the token we get from the Front WebApp, as is
+                                        //TODO : add the proper flow for the plugin : client_credentials or OnBehalfOf
                                         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authHeader);
                                         return Task.CompletedTask;
                                     }) : null
