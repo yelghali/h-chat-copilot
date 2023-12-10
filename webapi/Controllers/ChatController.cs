@@ -329,11 +329,58 @@ public class ChatController : ControllerBase, IDisposable
                 {
                     if (authHeaders.TryGetValue(plugin.AuthHeaderTag.ToUpperInvariant(), out string? PluginAuthValue))
                     {
+                        //
+                        //
+                        //HERE STARTS CUSTOM CODE
+
                         // Register the ChatGPT plugin with the planner's kernel.
                         this._logger.LogInformation("Enabling {0} plugin.", plugin.NameForHuman);
 
                         // TODO: [Issue #44] Support other forms of auth. Currently, we only support user PAT or no auth.
                         var requiresAuth = !plugin.AuthType.Equals("none", StringComparison.OrdinalIgnoreCase);
+
+                        // if my plugin is an Azure AD protected plugin, then I need to change Auth header
+                        if (plugin.NameForModel.StartsWith("Contoso", StringComparison.OrdinalIgnoreCase))
+                        {
+                            requiresAuth = true;
+
+                            await planner.Kernel.ImportOpenAIPluginFunctionsAsync(
+                                PluginUtils.SanitizePluginName(plugin.NameForModel),
+                                PluginUtils.GetPluginManifestUri(plugin.ManifestDomain),
+                                new OpenAIFunctionExecutionParameters
+                                {
+                                    HttpClient = this._httpClientFactory.CreateClient("Plugin"),
+                                    IgnoreNonCompliantErrors = true,
+                                    AuthCallback = requiresAuth ? (OpenAIAuthenticateRequestAsyncCallback)((request, _, _) =>
+                                    {
+                                        // use Authoization header to pass the token ; from this.HttpContext.Request.Headers
+                                        // check if the header is present before
+                                        var authHeader = this.HttpContext.Request.Headers["Authorization"];
+
+                                        if (authHeader.Count == 0)
+                                        {
+                                            this._logger.LogError("No Authorization header found in the request");
+                                            return Task.CompletedTask;
+                                        }
+                                        //remove 'Bearer ' prefix, if the auth header starts with it
+                                        if (authHeader.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            authHeader = authHeader.ToString().Substring(7);
+                                        }
+
+                                        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authHeader);
+                                        return Task.CompletedTask;
+                                    }) : null
+                                });
+                            this._logger.LogInformation("Using AzureAD authentication for {0} plugin.", plugin.NameForHuman);
+
+                            continue;
+                        }
+                        // 
+                        //
+                        //HERE ENDS CUSTOM CODE
+
+                        // else
                         OpenAIAuthenticateRequestAsyncCallback authCallback = (request, _, _) =>
                         {
                             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", PluginAuthValue);
