@@ -329,9 +329,6 @@ public class ChatController : ControllerBase, IDisposable
                 {
                     if (authHeaders.TryGetValue(plugin.AuthHeaderTag.ToUpperInvariant(), out string? PluginAuthValue))
                     {
-                        //
-                        //
-                        //HERE STARTS CUSTOM CODE
 
                         // Register the ChatGPT plugin with the planner's kernel.
                         this._logger.LogInformation("Enabling {0} plugin.", plugin.NameForHuman);
@@ -339,6 +336,9 @@ public class ChatController : ControllerBase, IDisposable
                         // TODO: [Issue #44] Support other forms of auth. Currently, we only support user PAT or no auth.
                         var requiresAuth = !plugin.AuthType.Equals("none", StringComparison.OrdinalIgnoreCase);
 
+                        //
+                        //
+                        //HERE STARTS CUSTOM CODE
                         // if my plugin is an Azure AD protected plugin, then I need to change Auth header
                         if (plugin.NameForModel.StartsWith("Contoso", StringComparison.OrdinalIgnoreCase))
                         {
@@ -368,7 +368,7 @@ public class ChatController : ControllerBase, IDisposable
                                             authHeader = authHeader.ToString().Substring(7);
                                         }
                                         //Here we're just passing the token we get from the Front WebApp, as is
-                                        //TODO : add the proper flow for the plugin : client_credentials or OnBehalfOf
+                                        //TODO : add the proper flow for the plugin : client_credentials or OnBehalfOfUser
                                         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authHeader);
                                         return Task.CompletedTask;
                                     }) : null
